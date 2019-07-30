@@ -1,6 +1,7 @@
 using LogDensityTestSuite, Test, Statistics
 import ForwardDiff
-using LogDensityProblems: dimension, logdensity, logdensity_and_gradient
+using LogDensityProblems: capabilities, dimension, logdensity, logdensity_and_gradient,
+    LogDensityOrder
 
 "Test gradient with automatic differentiation."
 function test_gradient(ℓ, x; atol = √eps())
@@ -15,6 +16,7 @@ end
     K = 5
     ℓ = StandardMultivariateNormal(K)
     @test dimension(ℓ) == K
+    @test capabilities(ℓ) == LogDensityOrder(1)
     Z = samples(ℓ, 1000)
     for i in axes(Z, 1)
         test_gradient(ℓ, Z[:, i])
