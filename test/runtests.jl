@@ -16,8 +16,8 @@ end
     ℓ = StandardMultivariateNormal(K)
     @test dimension(ℓ) == K
     Z = samples(ℓ, 1000)
-    for z in eachcol(Z)
-        test_gradient(ℓ, z)
+    for i in axes(Z, 1)
+        test_gradient(ℓ, Z[:, i])
     end
     @test mean(Z; dims = 2) ≈ zeros(K) atol = 0.01
     @test std(Z; dims = 2) ≈ ones(K) atol = 0.02
