@@ -1,6 +1,6 @@
 module LogDensityTestSuite
 
-export samples, StandardMultivariateNormal, linear
+export samples, StandardMultivariateNormal, linear, shift
 
 using ArgCheck: @argcheck
 using DocStringExtensions: FUNCTIONNAME, SIGNATURES
@@ -123,5 +123,33 @@ function logdensity_and_gradient(ℓ::Linear, x)
 end
 
 hypercube_transform(ℓ::Linear, x) = ℓ.A * hypercube_transform(ℓ.ℓ, x)
+
+###
+### shift (translation)
+###
+
+struct Shift{L, T <: AbstractVector} <: SamplingLogDensity
+    ℓ::L
+    b::T
+end
+
+"""
+$(SIGNATURES)
+
+Transform a distribution on `x` to `y = x + b`, where `b` is a conformable vector.
+"""
+function shift(ℓ, b::AbstractVector)
+    @argcheck length(b) == dimension(ℓ)
+    Shift(ℓ, b)
+end
+
+dimension(ℓ::Shift) = dimension(ℓ.ℓ)
+
+logdensity(ℓ::Shift, x) = logdensity(ℓ.ℓ, x - ℓ.b)
+
+# The log Jacobian adjustment is zero
+logdensity_and_gradient(ℓ::Shift, x) = logdensity_and_gradient(ℓ.ℓ, x - ℓ.b)
+
+hypercube_transform(ℓ::Shift, x) = ℓ.b .+ hypercube_transform(ℓ.ℓ, x)
 
 end # module
