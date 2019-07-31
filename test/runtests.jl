@@ -2,6 +2,7 @@ using LogDensityTestSuite, Test, Statistics
 import ForwardDiff
 using LogDensityProblems: capabilities, dimension, logdensity, logdensity_and_gradient,
     LogDensityOrder
+using LogDensityTestSuite: hypercube_dimension
 
 "Test gradient with automatic differentiation."
 function test_gradient(ℓ, x; atol = √eps())
@@ -13,11 +14,12 @@ function test_gradient(ℓ, x; atol = √eps())
 end
 
 @testset "standard multivariate normal" begin
-    K = 5
+    K, N = 5, 1000
     ℓ = StandardMultivariateNormal(K)
-    @test dimension(ℓ) == K
+    @test dimension(ℓ) == hypercube_dimension(ℓ) == K
     @test capabilities(ℓ) == LogDensityOrder(1)
-    Z = samples(ℓ, 1000)
+    Z = samples(ℓ, N)
+    @test size(Z) == (K, N)
     for i in axes(Z, 1)
         test_gradient(ℓ, Z[:, i])
     end
