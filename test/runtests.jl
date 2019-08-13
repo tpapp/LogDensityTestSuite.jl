@@ -69,3 +69,27 @@ end
         test_mvnormal(μ, A, Σ)
     end
 end
+
+@testset "mixture" begin
+    K, N = 5, 1000
+    α = 0.7
+    ℓ1 = StandardMultivariateNormal(K)
+    μ2 = fill(1.7, K)
+    ℓ2 = shift(linear(StandardMultivariateNormal(K), Diagonal(fill(0.2, K))), μ2)
+    ℓ = mix(α, ℓ1, ℓ2)
+    @test dimension(ℓ) == K
+    @test hypercube_dimension(ℓ) == K + 1
+    @test capabilities(ℓ) == LogDensityOrder(1)
+    Z = samples(ℓ, N)
+    @test size(Z) == (K, N)
+    for i in axes(Z, 1)
+        x = Z[:, i]
+        @test logdensity(ℓ, x) ≈
+            log(α * exp(logdensity(ℓ1, x)) + (1 - α) * exp(logdensity(ℓ2, x)))
+        test_gradient(ℓ, x)
+    end
+    @test mean(Z; dims = 2) ≈ (1 - α) .* μ2 atol = 0.02
+
+    @test_throws ArgumentError mix(0.5, ℓ1, StandardMultivariateNormal(K + 1))
+    @test_throws ArgumentError mix(-0.1, ℓ1, ℓ2)
+end
