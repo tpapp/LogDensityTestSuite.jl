@@ -35,7 +35,7 @@ end
 
     function test_mvnormal(μ, A, Σ)
         K = size(A, 1)
-        ℓ = shift(linear(StandardMultivariateNormal(K), A), μ)
+        ℓ = shift(μ, linear(A, StandardMultivariateNormal(K)))
         d = MvNormal(μ, Σ)
         C = logpdf(d, μ) - logdensity(ℓ, μ) # get the constant
         @test dimension(ℓ) == hypercube_dimension(ℓ) == K
@@ -75,7 +75,7 @@ end
     α = 0.7
     ℓ1 = StandardMultivariateNormal(K)
     μ2 = fill(1.7, K)
-    ℓ2 = shift(linear(StandardMultivariateNormal(K), Diagonal(fill(0.2, K))), μ2)
+    ℓ2 = shift(μ2, linear(Diagonal(fill(0.2, K)), StandardMultivariateNormal(K)))
     ℓ = mix(α, ℓ1, ℓ2)
     @test dimension(ℓ) == K
     @test hypercube_dimension(ℓ) == K + 1

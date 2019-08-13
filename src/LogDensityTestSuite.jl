@@ -117,7 +117,7 @@ Transform a distribution on `x` to `y = Ax`, where `A` is a conformable square m
 
 Since the log Jacobian is constant, it is dropped in the log density.
 """
-function linear(ℓ, A::AbstractMatrix)
+function linear(A::AbstractMatrix, ℓ)
     K = dimension(ℓ)
     @argcheck checksquare(A) == K
     Linear(ℓ, A, _fastdiv(A))
@@ -148,7 +148,7 @@ $(SIGNATURES)
 
 Transform a distribution on `x` to `y = x + b`, where `b` is a conformable vector.
 """
-function shift(ℓ, b::AbstractVector)
+function shift(b::AbstractVector, ℓ)
     @argcheck length(b) == dimension(ℓ)
     Shift(ℓ, b)
 end
