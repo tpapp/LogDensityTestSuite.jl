@@ -13,6 +13,10 @@ function test_gradient(ℓ, x; atol = √eps())
     @test g ≈ g2 atol = atol
 end
 
+####
+#### primitives
+####
+
 @testset "standard multivariate normal" begin
     K, N = 5, 1000
     ℓ = StandardMultivariateNormal(K)
@@ -26,6 +30,10 @@ end
     @test mean(Z; dims = 2) ≈ zeros(K) atol = 0.01
     @test std(Z; dims = 2) ≈ ones(K) atol = 0.02
 end
+
+####
+#### transformations
+####
 
 @testset "multivariate normal using transform" begin
     K = 4
@@ -70,6 +78,10 @@ end
     end
 end
 
+####
+#### mixtures
+####
+
 @testset "mixture" begin
     K, N = 5, 1000
     α = 0.7
@@ -92,4 +104,29 @@ end
 
     @test_throws ArgumentError mix(0.5, ℓ1, StandardMultivariateNormal(K + 1))
     @test_throws ArgumentError mix(-0.1, ℓ1, ℓ2)
+end
+
+####
+#### diagnostics
+####
+
+@testset "diagnostics" begin
+    x = range(0, 1; length = 100001)
+    q = quantile_boundaries(x, 10)
+
+    # test p-values and printing
+    bc = bin_counts(q, rand(1000))
+    bc.bin_counts[1] = 1        # to test printing extremes
+    ps = two_sided_pvalues(bc)
+    @test all(0 .≤ ps .≤ 1)
+    @test print_ascii_plot(String, bc) isa String # very rudimentary
+    @info "this is what a printed ascii plot looks like"
+    show(stdout, bc)
+
+    # validate p-values
+    q̄ = (1:3)./4
+    ps = reduce(hcat, [two_sided_pvalues(bin_counts(q, rand(1000))) for _ in 1:1000])
+    for i in axes(ps, 1)
+        @test quantile(ps[i, :], q̄) ≈ q̄ atol = 0.1
+    end
 end
