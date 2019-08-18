@@ -13,6 +13,10 @@ function test_gradient(ℓ, x; atol = √eps())
     @test g ≈ g2 atol = atol
 end
 
+####
+#### primitives
+####
+
 @testset "standard multivariate normal" begin
     K, N = 5, 1000
     ℓ = StandardMultivariateNormal(K)
@@ -26,6 +30,10 @@ end
     @test mean(Z; dims = 2) ≈ zeros(K) atol = 0.01
     @test std(Z; dims = 2) ≈ ones(K) atol = 0.02
 end
+
+####
+#### transformations
+####
 
 @testset "multivariate normal using transform" begin
     K = 4
@@ -69,6 +77,10 @@ end
         test_mvnormal(μ, A, Σ)
     end
 end
+
+####
+#### mixtures
+####
 
 @testset "mixture" begin
     K, N = 5, 1000
