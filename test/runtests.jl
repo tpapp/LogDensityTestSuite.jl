@@ -119,7 +119,7 @@ end
     @test all(0 .≤ two_sided_pvalues(bc) .≤ 1)
     @test print_ascii_plot(String, bc) isa String # very rudimentary
     @info "this is what a printed ascii plot looks like"
-    print_ascii_plot(stdout, bc)
+    show(stdout, bc)
 
     # validate p-values
     q̄ = (1:3)./4
