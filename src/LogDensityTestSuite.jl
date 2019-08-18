@@ -19,6 +19,7 @@ using LogDensityProblems: LogDensityOrder
 import LogDensityProblems: capabilities, dimension, logdensity, logdensity_and_gradient
 using MCMCDiagnostics: ess_factor_estimate
 using Parameters: @unpack
+using Printf: @sprintf
 using Sobol: next!, SobolSeq
 using Statistics: quantile
 using StatsFuns: norminvcdf, normcdf

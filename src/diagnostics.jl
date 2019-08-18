@@ -121,21 +121,20 @@ first argument is a `String`, return the output as a string instead of printing.
 # Keyword arguments
 
 - `canvas_width`: width of the canvas for the plot
-- `p_digits`: number of characters for the digits of p-values
-- `p_sigdigits`: p-values rounded to this many significant digits
-- `p_colname`: column name for p-values
+- `p_colname`: column name for p-values (the actual value printed is `-log10(p)`)
 - `bin_colname`: column name for bin indices
 - `α`: two markers (with `(` and `)` are placed at the quantiles `α` and `1-α`
 - `padding`: enlargement factor for canvas
 
 $(ESS_CORRECTION_DOC)
 """
-function print_ascii_plot(io::IO, ubc::UnivariateBinCounts; canvas_width = 80, p_digits = 6,
-                          p_sigdigits = 2, p_colname = "p", bin_colname = "bin", α = 0.05,
-                          padding = 0.1, ess_correction = true)
+function print_ascii_plot(io::IO, ubc::UnivariateBinCounts; canvas_width = 80,
+                          p_colname = "-log10(p)", bin_colname = "bin", α = 0.05,
+                          padding = 0.05, ess_correction = true)
     @unpack μ, σ = _normal_approximation(ubc)
     @unpack N, bin_counts = ubc
     @argcheck 0 < α < 0.5
+    @argcheck canvas_width ≥ 10
     z = norminvcdf(α / 2)
     N1, N2 = μ .+ σ .* (z, -z)  # boundary lines
     Nl, Nr = _inflate_extrema(extrema(vcat(bin_counts, [N1, N2]))..., padding)
@@ -154,19 +153,19 @@ function print_ascii_plot(io::IO, ubc::UnivariateBinCounts; canvas_width = 80, p
     end
     ps = two_sided_pvalues(ubc; ess_correction = ess_correction)
     # print everything
-    p_pad = max(p_digits + 2, length(p_colname))
+    p_pad = max(5, length(p_colname))
     b_pad = max(length(string(K)), length(bin_colname))
-    println(io, rpad(p_colname, p_pad, ' '), ' ', rpad(bin_colname, b_pad, ' '), ' ',
-          "  counts with boundaries at p-value = $(α)")
+    canvas_label = " counts with boundaries at p-value = $(α) "
+    canvas_label = lpad(canvas_label * '-'^((canvas_width - length(canvas_label) - 2) ÷ 2),
+                        canvas_width - 2, '-')
+    println(io, rpad(p_colname, p_pad, ' '), ' ', rpad(bin_colname, b_pad, ' '), " (",
+            canvas_label, ")")
     for i in 1:K
-        p_string = string(round(ps[i]; sigdigits = p_sigdigits))
-        len = length(p_string)  # OK, since all ASCII
-        if len > p_pad
-            p_string = p_string[1:p_pad]
-        elseif len < p_pad
-            p_string = rpad(p_string, p_pad, ' ')
+        p_string = @sprintf "%.1f" -log10(ps[i])
+        if length(p_string) > p_pad # should never happen
+            p_string = "LARGE"
         end
-        print(io, p_string, ' ', lpad(string(i), b_pad, ' '), ' ')
+        print(io, lpad(p_string, p_pad, ' '), ' ', lpad(string(i), b_pad, ' '), ' ')
         for c in canvas[i, :]
             print(io, c)
         end

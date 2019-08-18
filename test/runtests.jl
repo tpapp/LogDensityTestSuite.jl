@@ -116,7 +116,9 @@ end
 
     # test p-values and printing
     bc = bin_counts(q, rand(1000))
-    @test all(0 .≤ two_sided_pvalues(bc) .≤ 1)
+    bc.bin_counts[1] = 1        # to test printing extremes
+    ps = two_sided_pvalues(bc)
+    @test all(0 .≤ ps .≤ 1)
     @test print_ascii_plot(String, bc) isa String # very rudimentary
     @info "this is what a printed ascii plot looks like"
     show(stdout, bc)
