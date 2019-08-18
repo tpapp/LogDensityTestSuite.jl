@@ -75,7 +75,7 @@ function _normal_approximation(ubc::UnivariateBinCounts; ess_correction::Bool = 
     @unpack N, τ, bin_counts = ubc
     π = 1 / length(bin_counts)
     μ = N * π
-    σ = √(N * (ess_correction ? τ : one(τ)) * π * (1 - π))
+    σ = √(N / (ess_correction ? τ : one(τ)) * π * (1 - π))
     (μ = μ, σ = σ)
 end
 
