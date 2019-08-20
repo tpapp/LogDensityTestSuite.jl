@@ -2,9 +2,21 @@
 ##### mixtures of distributions
 #####
 
+"""
+$(TYPEDEF)
+
+Mixture of two distributions.
+
+# Fields
+
+$(FIELDS)
+"""
 struct Mix{T <: Real,L1,L2} <: SamplingLogDensity
+    "Mixture weight on `ℓ1`"
     α::T
+    "The log density with weight `α`."
     ℓ1::L1
+    "The log density with weight `1-α`."
     ℓ2::L2
 end
 
@@ -37,19 +49,20 @@ function logdensity_and_gradient(ℓ::Mix, x)
     @unpack α, ℓ1, ℓ2 = ℓ
     ℓ1x, ∇ℓ1x = logdensity_and_gradient(ℓ1, x)
     ℓ2x, ∇ℓ2x = logdensity_and_gradient(ℓ2, x)
-    (isfinite(ℓ1x) && isfinite(ℓ2x)) || return -Inf, nothing
-    Δ = ℓ1x - ℓ2x
-    if Δ ≥ 0
-        αeΔ = α * exp(Δ)
-        Omα = 1 - α
-        D = αeΔ + Omα
-        ℓx = log(D) + ℓ2x
-        ∇ℓx =  (αeΔ .* ∇ℓ1x .+ Omα .* ∇ℓ2x) ./ D
+    logα = log(α)
+    log1mα = log1p(-α)
+    y1 = logα + ℓ1x
+    y2 = log1mα + ℓ2x
+    if y1 > y2
+        Δ = y2 - y1
+        ∇Δ = ∇ℓ2x - ∇ℓ1x        # NOTE: ∂Δ/∂α term will be added here
+        ℓx = y1 + log1p(exp(Δ))
+        ∇ℓx = ∇ℓ1x .+ ∇Δ ./ (1 + exp(-Δ))
     else
-        OmαeΔ = (1 - α) * exp(-Δ)
-        D = α + OmαeΔ
-        ℓx = log(D) + ℓ1x
-        ∇ℓx = (α .* ∇ℓ1x .+ OmαeΔ .* ∇ℓ2x) ./ D
+        Δ = y1 - y2
+        ∇Δ = ∇ℓ1x - ∇ℓ2x        # NOTE: see above
+        ℓx = y2 + log1p(exp(Δ))
+        ∇ℓx = ∇ℓ2x .+ ∇Δ ./ (1 + exp(-Δ))
     end
     ℓx, ∇ℓx
 end
