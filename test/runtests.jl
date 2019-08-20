@@ -139,6 +139,6 @@ end
     q̄ = (1:3)./4
     ps = reduce(hcat, [two_sided_pvalues(bin_counts(q, rand(1000))) for _ in 1:1000])
     for i in axes(ps, 1)
-        @test quantile(ps[i, :], q̄) ≈ q̄ atol = 0.1
+        @test quantile(ps[i, :], q̄) ≈ q̄ atol = 0.1 norm = x -> norm(x, Inf)
     end
 end
