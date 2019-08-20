@@ -1,4 +1,4 @@
-using LogDensityTestSuite, Test, Statistics, LinearAlgebra, Distributions
+using LogDensityTestSuite, Test, Statistics, LinearAlgebra, Distributions, StatsFuns
 import ForwardDiff
 using LogDensityProblems: capabilities, dimension, logdensity, logdensity_and_gradient,
     LogDensityOrder
@@ -84,23 +84,36 @@ end
 
 @testset "mixture" begin
     K, N = 5, 1000
-    α = 0.7
     ℓ1 = StandardMultivariateNormal(K)
     μ2 = fill(1.7, K)
-    ℓ2 = shift(μ2, linear(Diagonal(fill(0.2, K)), StandardMultivariateNormal(K)))
-    ℓ = mix(α, ℓ1, ℓ2)
-    @test dimension(ℓ) == K
-    @test hypercube_dimension(ℓ) == K + 1
-    @test capabilities(ℓ) == LogDensityOrder(1)
-    Z = samples(ℓ, N)
-    @test size(Z) == (K, N)
-    for i in axes(Z, 1)
-        x = Z[:, i]
-        @test logdensity(ℓ, x) ≈
-            log(α * exp(logdensity(ℓ1, x)) + (1 - α) * exp(logdensity(ℓ2, x)))
-        test_gradient(ℓ, x)
+    ℓ2 = shift(μ2, linear(Diagonal(fill(0.01, K)), StandardMultivariateNormal(K)))
+    for α in [0, √eps(), 0.7, 1-√eps(), 1] # extreme, near-extreme, interior α
+        ℓ = mix(α, ℓ1, ℓ2)
+        @test dimension(ℓ) == K
+        @test hypercube_dimension(ℓ) == K + 1
+        @test capabilities(ℓ) == LogDensityOrder(1)
+        Z = samples(ℓ, N)
+        @test size(Z) == (K, N)
+
+        # test at sample values
+        for i in axes(Z, 1)
+            x = Z[:, i]
+            @test logdensity(ℓ, x) ≈
+                logaddexp(log(α) + logdensity(ℓ1, x), log1p(-α) + logdensity(ℓ2, x))
+            test_gradient(ℓ, x)
+        end
+
+        # test at random extreme values (numerical stability)
+        for _ in 1:1000
+            x = normalize!(randn(K), 2) .* 100
+            @test logdensity(ℓ, x) ≈
+                logaddexp(log(α) + logdensity(ℓ1, x), log1p(-α) + logdensity(ℓ2, x))
+            test_gradient(ℓ, x)
+        end
+
+        # compare means
+        @test mean(Z; dims = 2) ≈ (1 - α) .* μ2 atol = 0.02
     end
-    @test mean(Z; dims = 2) ≈ (1 - α) .* μ2 atol = 0.02
 
     @test_throws ArgumentError mix(0.5, ℓ1, StandardMultivariateNormal(K + 1))
     @test_throws ArgumentError mix(-0.1, ℓ1, ℓ2)
