@@ -14,7 +14,7 @@ export
 
 using ArgCheck: @argcheck
 using DocStringExtensions: FIELDS, FUNCTIONNAME, SIGNATURES, TYPEDEF
-using LinearAlgebra: checksquare, lu, AbstractTriangular, Diagonal
+using LinearAlgebra: checksquare, diag, lu, logabsdet, AbstractTriangular, Diagonal
 using LogDensityProblems: LogDensityOrder
 import LogDensityProblems: capabilities, dimension, logdensity, logdensity_and_gradient
 using MCMCDiagnostics: ess_factor_estimate

@@ -24,8 +24,10 @@ end
     @test capabilities(ℓ) == LogDensityOrder(1)
     Z = samples(ℓ, N)
     @test size(Z) == (K, N)
-    for i in axes(Z, 1)
-        test_gradient(ℓ, Z[:, i])
+    D = MvNormal(zeros(K), Diagonal(ones(K)))
+    for x in eachcol(Z)
+        test_gradient(ℓ, x)
+        @test logdensity(ℓ, x) ≈ logpdf(D, x)
     end
     @test mean(Z; dims = 2) ≈ zeros(K) atol = 0.01
     @test std(Z; dims = 2) ≈ ones(K) atol = 0.02
@@ -44,16 +46,14 @@ end
     function test_mvnormal(μ, A, Σ)
         K = size(A, 1)
         ℓ = shift(μ, linear(A, StandardMultivariateNormal(K)))
-        d = MvNormal(μ, Σ)
-        C = logpdf(d, μ) - logdensity(ℓ, μ) # get the constant
+        D = MvNormal(μ, Σ)
         @test dimension(ℓ) == hypercube_dimension(ℓ) == K
         @test capabilities(ℓ) == LogDensityOrder(1)
         Z = samples(ℓ, 1000)
-        for i in axes(Z, 1)
-            x = Z[:, i]
+        for x in eachcol(Z)
             f, ∇f = logdensity_and_gradient(ℓ, x)
-            @test f + C ≈ logpdf(d, x)
-            @test ∇f ≈ gradlogpdf(d, x)
+            @test f ≈ logpdf(D, x)
+            @test ∇f ≈ gradlogpdf(D, x)
         end
         @test mean(Z; dims = 2) ≈ μ atol = 0.02
         @test norm(cov(Z; dims = 2) .- Σ, Inf) ≤ 0.07
@@ -96,8 +96,7 @@ end
         @test size(Z) == (K, N)
 
         # test at sample values
-        for i in axes(Z, 1)
-            x = Z[:, i]
+        for x in eachcol(Z)
             @test logdensity(ℓ, x) ≈
                 logaddexp(log(α) + logdensity(ℓ1, x), log1p(-α) + logdensity(ℓ2, x))
             test_gradient(ℓ, x)

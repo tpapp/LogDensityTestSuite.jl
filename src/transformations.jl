@@ -6,10 +6,11 @@
 #### linear transformation
 ####
 
-struct Linear{L,T,S} <: SamplingLogDensity
+struct Linear{L,M,S,T} <: SamplingLogDensity
     ℓ::L
-    A::T
+    A::M
     divA::S
+    logabsdetA::T
 end
 
 """
@@ -24,6 +25,15 @@ _fastdiv(A::Diagonal) = A
 """
 $(SIGNATURES)
 
+Internal method for logabsdet, work around
+https://github.com/JuliaLang/julia/issues/32988
+"""
+_logabsdet(A::AbstractMatrix) = first(logabsdet(A))
+_logabsdet(A::Diagonal) = sum(log ∘ abs, diag(A))
+
+"""
+$(SIGNATURES)
+
 Transform a distribution on `x` to `y = Ax`, where `A` is a conformable square matrix.
 
 Since the log Jacobian is constant, it is dropped in the log density.
@@ -31,16 +41,16 @@ Since the log Jacobian is constant, it is dropped in the log density.
 function linear(A::AbstractMatrix, ℓ)
     K = dimension(ℓ)
     @argcheck checksquare(A) == K
-    Linear(ℓ, A, _fastdiv(A))
+    Linear(ℓ, A, _fastdiv(A), _logabsdet(A))
 end
 
 dimension(ℓ::Linear) = dimension(ℓ.ℓ)
 
-logdensity(ℓ::Linear, x) = logdensity(ℓ.ℓ, ℓ.divA \ x)
+logdensity(ℓ::Linear, x) = logdensity(ℓ.ℓ, ℓ.divA \ x) - ℓ.logabsdetA
 
 function logdensity_and_gradient(ℓ::Linear, x)
     f, ∇f = logdensity_and_gradient(ℓ.ℓ, ℓ.divA \ x)
-    f, (ℓ.divA') \ ∇f
+    f - ℓ.logabsdetA, (ℓ.divA') \ ∇f
 end
 
 hypercube_transform(ℓ::Linear, x) = ℓ.A * hypercube_transform(ℓ.ℓ, x)

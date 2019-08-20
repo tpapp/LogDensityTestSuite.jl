@@ -9,7 +9,7 @@ end
 
 dimension(ℓ::StandardMultivariateNormal) = ℓ.K
 
-logdensity(ℓ::StandardMultivariateNormal, x) = -0.5 * sum(abs2, x)
+logdensity(ℓ::StandardMultivariateNormal, x) = -0.5 * sum(abs2, x) - ℓ.K/2 * log(2*π)
 
 logdensity_and_gradient(ℓ::StandardMultivariateNormal, x) = logdensity(ℓ, x), -x
 
