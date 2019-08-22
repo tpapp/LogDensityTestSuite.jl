@@ -8,6 +8,7 @@
 ![Lifecycle](https://img.shields.io/badge/lifecycle-dormant-blue.svg) -->
 [![Build Status](https://travis-ci.com/tpapp/LogDensityTestSuite.jl.svg?branch=master)](https://travis-ci.com/tpapp/LogDensityTestSuite.jl)
 [![codecov.io](http://codecov.io/github/tpapp/LogDensityTestSuite.jl/coverage.svg?branch=master)](http://codecov.io/github/tpapp/LogDensityTestSuite.jl?branch=master)
+[![DOI](https://zenodo.org/badge/199613252.svg)](https://zenodo.org/badge/latestdoi/199613252)
 
 Implementation of log densities as callable object that support
 
