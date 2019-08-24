@@ -2,11 +2,21 @@
 ##### transformations
 #####
 
+"""
+$(TYPEDEF)
+
+Abstract type used internally for simplifying forwarding. Assumes a slot `ℓ`, and forwards
+`dimension` to it.
+"""
+abstract type LogDensityTransformation <: SamplingLogDensity end
+
+dimension(ℓ::LogDensityTransformation) = dimension(ℓ.ℓ)
+
 ####
 #### linear transformation
 ####
 
-struct Linear{L,M,S,T} <: SamplingLogDensity
+struct Linear{L,M,S,T} <: LogDensityTransformation
     ℓ::L
     A::M
     divA::S
@@ -44,8 +54,6 @@ function linear(A::AbstractMatrix, ℓ)
     Linear(ℓ, A, _fastdiv(A), _logabsdet(A))
 end
 
-dimension(ℓ::Linear) = dimension(ℓ.ℓ)
-
 logdensity(ℓ::Linear, x) = logdensity(ℓ.ℓ, ℓ.divA \ x) - ℓ.logabsdetA
 
 function logdensity_and_gradient(ℓ::Linear, x)
@@ -59,7 +67,7 @@ hypercube_transform(ℓ::Linear, x) = ℓ.A * hypercube_transform(ℓ.ℓ, x)
 #### shift (translation)
 ####
 
-struct Shift{L, T <: AbstractVector} <: SamplingLogDensity
+struct Shift{L, T <: AbstractVector} <: LogDensityTransformation
     ℓ::L
     b::T
 end
@@ -73,8 +81,6 @@ function shift(b::AbstractVector, ℓ)
     @argcheck length(b) == dimension(ℓ)
     Shift(ℓ, b)
 end
-
-dimension(ℓ::Shift) = dimension(ℓ.ℓ)
 
 logdensity(ℓ::Shift, x) = logdensity(ℓ.ℓ, x - ℓ.b)
 
