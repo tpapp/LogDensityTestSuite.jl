@@ -2,7 +2,7 @@ using LogDensityTestSuite, Test, Statistics, LinearAlgebra, Distributions, Stats
 import ForwardDiff
 using LogDensityProblems: capabilities, dimension, logdensity, logdensity_and_gradient,
     LogDensityOrder
-using LogDensityTestSuite: hypercube_dimension, _find_x_norm
+using LogDensityTestSuite: hypercube_dimension, _find_x_norm, weight, weight_and_gradient
 
 "Test gradient with automatic differentiation."
 function test_gradient(ℓ, x; atol = √eps())
@@ -103,7 +103,7 @@ end
 #### mixtures
 ####
 
-@testset "mixture" begin
+@testset "scalar mixture" begin
     K, N = 5, 1000
     ℓ1 = StandardMultivariateNormal(K)
     μ2 = fill(1.7, K)
@@ -136,7 +136,27 @@ end
     end
 
     @test_throws ArgumentError mix(0.5, ℓ1, StandardMultivariateNormal(K + 1))
-    @test_throws ArgumentError mix(-0.1, ℓ1, ℓ2)
+end
+
+@testset "directional mixture" begin
+    K, N = 5, 1000
+    ℓ1 = StandardMultivariateNormal(K)
+    μ2 = fill(1.7, K)
+    ℓ2 = shift(μ2, linear(Diagonal(fill(0.01, K)), StandardMultivariateNormal(K)))
+    α = directional_weight(ones(K))
+    ℓ = mix(α, ℓ1, ℓ2)
+    @test dimension(ℓ) == K
+    @test hypercube_dimension(ℓ) == K + 1
+    @test capabilities(ℓ) == LogDensityOrder(1)
+    Z = samples(ℓ, N)
+    @test size(Z) == (K, N)
+    # test at sample values
+    for x in eachcol(Z)
+        αx, ∇αx = weight_and_gradient(α, x)
+        @test ∇αx ≈ ForwardDiff.gradient(x -> weight(α, x), x)
+        test_gradient(ℓ, x)
+    end
+    @test_throws ArgumentError directional_weight(zeros(5))
 end
 
 ####
