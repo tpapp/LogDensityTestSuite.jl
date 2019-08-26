@@ -50,7 +50,7 @@ hypercube_dimension(ℓ::Mix) = max(hypercube_dimension(ℓ.ℓ1), hypercube_dim
 
 function hypercube_transform(ℓ::Mix, x)
     @unpack α, ℓ1, ℓ2 = ℓ
-    if x[end] < weight(α, x)
+    if x[end] < weight(α, x[1:dimension(ℓ)])
         hypercube_transform(ℓ1, @view x[1:hypercube_dimension(ℓ1)])
     else
         hypercube_transform(ℓ2, @view x[1:hypercube_dimension(ℓ2)])
@@ -68,4 +68,27 @@ function logdensity_and_gradient(ℓ::Mix, x)
     f(x, y) = iszero(x) ? zero(x + y) : x * y # avoiding NaN in corner cases
     ∇ℓx = @. f((∇αx + αx * ∇ℓ1x), exp(ℓ1x - ℓx)) + f((-∇αx + (1 - αx) * ∇ℓ2x), exp(ℓ2x - ℓx))
     ℓx, ∇ℓx
+end
+
+struct DirectionalWeight{V}
+    "The direction vector."
+    y::V
+end
+
+"""
+$(SIGNATURES)
+
+Represents the weight `α(x) = logistic(dot(x, y))`. The Euclidean norm of `y` is related to
+the slope of the gradient of `α` in the given direction.
+"""
+function directional_weight(y)
+    @argcheck norm(y, 2) > 0
+    DirectionalWeight(y)
+end
+
+function weight_and_gradient(α::DirectionalWeight, x)
+    @unpack y = α
+    αx = logistic(dot(x, y))
+    ∇αx = (αx * (1 - αx)) .* y
+    αx, ∇αx
 end
