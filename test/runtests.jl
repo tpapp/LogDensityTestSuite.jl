@@ -2,7 +2,7 @@ using LogDensityTestSuite, Test, Statistics, LinearAlgebra, Distributions, Stats
 import ForwardDiff
 using LogDensityProblems: capabilities, dimension, logdensity, logdensity_and_gradient,
     LogDensityOrder
-using LogDensityTestSuite: hypercube_dimension
+using LogDensityTestSuite: hypercube_dimension, _find_x_norm
 
 "Test gradient with automatic differentiation."
 function test_gradient(ℓ, x; atol = √eps())
@@ -76,6 +76,28 @@ end
         A = Q * Diagonal(.√diag(D))
         test_mvnormal(μ, A, Σ)
     end
+end
+
+@testset "elongate building blocks" begin
+    for _ in 1:1000
+        y = abs(randn())
+        k = abs(randn() * 3)
+        x = _find_x_norm(y, k)
+        @test y ≈ x * (1 + abs2(x))^k
+    end
+end
+
+@testset "elongate" begin
+    K, N = 5, 1000
+    ℓ = elongate(0.5, StandardMultivariateNormal(5))
+    @test dimension(ℓ) == hypercube_dimension(ℓ) == K
+    @test capabilities(ℓ) == LogDensityOrder(1)
+    Z = samples(ℓ, N)
+    @test vec(mean(Z; dims = 2)) ≈ zeros(K) norm = x -> norm(x, Inf) atol = 0.02
+    for x in eachcol(Z)
+        test_gradient(ℓ, x)
+    end
+    @test_throws ArgumentError expand(-1, StandardMultivariateNormal(5))
 end
 
 ####
