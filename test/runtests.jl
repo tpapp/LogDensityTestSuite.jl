@@ -97,7 +97,6 @@ end
     for x in eachcol(Z)
         test_gradient(ℓ, x)
     end
-    @test_throws ArgumentError expand(-1, StandardMultivariateNormal(5))
 end
 
 ####
