@@ -136,7 +136,6 @@ end
     end
 
     @test_throws ArgumentError mix(0.5, ℓ1, StandardMultivariateNormal(K + 1))
-    @test_throws ArgumentError mix(-0.1, ℓ1, ℓ2)
 end
 
 ####

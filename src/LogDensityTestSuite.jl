@@ -22,7 +22,7 @@ using Parameters: @unpack
 using Printf: @sprintf
 using Sobol: next!, SobolSeq
 using Statistics: quantile
-using StatsFuns: norminvcdf, normcdf
+using StatsFuns: norminvcdf, normcdf, logaddexp
 
 include("generic.jl")
 include("primitives.jl")
