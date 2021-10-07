@@ -19,7 +19,7 @@ using LinearAlgebra: AbstractTriangular, checksquare, diag, Diagonal, I, dot, lo
 using LogDensityProblems: LogDensityOrder
 import LogDensityProblems: capabilities, dimension, logdensity, logdensity_and_gradient
 using MCMCDiagnostics: ess_factor_estimate
-using Parameters: @unpack
+using UnPack: @unpack
 using Printf: @sprintf
 using Sobol: next!, SobolSeq
 using Statistics: quantile
