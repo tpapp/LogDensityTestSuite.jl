@@ -17,9 +17,13 @@ dimension(ℓ::LogDensityTransformation) = dimension(ℓ.ℓ)
 ####
 
 struct Linear{L,M,S,T} <: LogDensityTransformation
+    "the parent log density"
     ℓ::L
+    "the matrix that multiplies coordinates"
     A::M
+    "a form so that `divA \\ x ≈ A \\ x`, yet it is fast"
     divA::S
+    "``log(abs(det(A)))``"
     logabsdetA::T
 end
 
@@ -35,23 +39,20 @@ _fastdiv(A::Diagonal) = A
 """
 $(SIGNATURES)
 
-Internal method for logabsdet, work around
-https://github.com/JuliaLang/julia/issues/32988
-"""
-_logabsdet(A::AbstractMatrix) = first(logabsdet(A))
-_logabsdet(A::Diagonal) = sum(log ∘ abs, diag(A))
-
-"""
-$(SIGNATURES)
-
-Transform a distribution on `x` to `y = Ax`, where `A` is a conformable square matrix.
+Transform a distribution on `x` to `y = Ax`, where `A` is a conformable square matrix or a
+`UniformScaling` (eg `I * scalar`).
 
 Since the log Jacobian is constant, it is dropped in the log density.
 """
 function linear(A::AbstractMatrix, ℓ)
     K = dimension(ℓ)
     @argcheck checksquare(A) == K
-    Linear(ℓ, A, _fastdiv(A), _logabsdet(A))
+    Linear(ℓ, A, _fastdiv(A), first(logabsdet(A)))
+end
+
+# special-cased, not an AbstractMatrix
+function linear(A::UniformScaling, ℓ)
+    Linear(ℓ, A, A, log(abs(A.λ)) * dimension(ℓ))
 end
 
 logdensity(ℓ::Linear, x) = logdensity(ℓ.ℓ, ℓ.divA \ x) - ℓ.logabsdetA

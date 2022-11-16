@@ -44,7 +44,7 @@ end
     μ = collect(range(0.04; step = 0.2, length = K))
 
     function test_mvnormal(μ, A, Σ)
-        K = size(A, 1)
+        K = size(Σ, 1)
         ℓ = shift(μ, linear(A, StandardMultivariateNormal(K)))
         d = MvNormal(μ, Σ)
         @test dimension(ℓ) == hypercube_dimension(ℓ) == K
@@ -61,7 +61,13 @@ end
 
     @testset "MvNormal Diagonal" begin
         A = Diagonal(2 .* ones(K))
-        Σ = A * A
+        Σ = A * A'
+        test_mvnormal(μ, A, Σ)
+    end
+
+    @testset "MvNormal Diagonal w/ UniformScaling" begin
+        A = I * 0.4
+        Σ = (A * A')(K)
         test_mvnormal(μ, A, Σ)
     end
 
