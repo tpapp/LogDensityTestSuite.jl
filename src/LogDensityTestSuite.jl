@@ -18,7 +18,7 @@ using LinearAlgebra: AbstractTriangular, checksquare, diag, Diagonal, I, dot, lo
     norm, UniformScaling
 using LogDensityProblems: LogDensityOrder
 import LogDensityProblems: capabilities, dimension, logdensity, logdensity_and_gradient
-using MCMCDiagnostics: ess_factor_estimate
+using MCMCDiagnosticTools: ess_rhat
 using UnPack: @unpack
 using Printf: @sprintf
 import Random                   # don't import anything since we only use it in one place

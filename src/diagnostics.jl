@@ -54,8 +54,10 @@ function bin_counts(uqb::UnivariateQuantileBoundaries, xs)
     for x in xs
         bin_counts[searchsortedfirst(boundaries, x)] += 1
     end
-    τ = first(ess_factor_estimate(xs))
-    UnivariateBinCounts(length(xs), τ, bin_counts)
+    ess, _ = ess_rhat(reshape(xs, :, 1, 1))
+    N = length(xs)
+    τ = ess[1] / N
+    UnivariateBinCounts(N, τ, bin_counts)
 end
 
 const ESS_CORRECTION_DOC = """
