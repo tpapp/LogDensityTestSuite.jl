@@ -21,6 +21,7 @@ import LogDensityProblems: capabilities, dimension, logdensity, logdensity_and_g
 using MCMCDiagnostics: ess_factor_estimate
 using UnPack: @unpack
 using Printf: @sprintf
+import Random                   # don't import anything since we only use it in one place
 using Sobol: next!, SobolSeq
 using Statistics: quantile
 using StatsFuns: norminvcdf, normcdf, logaddexp, logistic

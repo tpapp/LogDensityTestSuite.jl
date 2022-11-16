@@ -37,6 +37,15 @@ end
     @test std(Z; dims = 2) ≈ ones(K) atol = 0.02
 end
 
+@testset "random samples" begin
+    # NOTE this is a very crude test, basically checking that the `rand` interface hooks
+    # into the right calls. everything else is tested using samples.
+    μ = [0.5, 0.3]
+    L = [0.1 0.3; 0.9 0.7]
+    ℓ = shift(μ, linear(L, StandardMultivariateNormal(2)))
+    @test mean(rand(ℓ) for _ in 1:10000) ≈ μ atol = 0.05
+end
+
 ####
 #### transformations
 ####
@@ -176,7 +185,7 @@ end
     # test at sample values
     for x in eachcol(Z)
         αx, ∇αx = weight_and_gradient(α, x)
-        @test ∇αx ≈ grad(central_fdm(5, 1), x -> weight(α, x), x)
+        @test ∇αx ≈ grad(central_fdm(5, 1), x -> weight(α, x), x)[1]
         test_gradient(ℓ, x)
     end
     @test_throws ArgumentError directional_weight(zeros(5))
