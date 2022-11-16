@@ -10,6 +10,8 @@ Abstract type for convenient dispatch.
 1. `hypercube_dimension` falls back to `dimension`,
 
 2. `logdensity` works through `logdensity_and_gradient` (inefficient, but should not matter)
+
+3. `rand` is implemented via `hypercube_transform`.
 """
 abstract type SamplingLogDensity end
 
@@ -37,6 +39,12 @@ The result needs to be distinct from `x`, as that is a buffer that may be reused
 Mostly for internal use, see [`samples`](@ref).
 """
 function hypercube_transform end
+
+function Random.rand(rng::Random.AbstractRNG,
+                     d::Random.SamplerTrivial{<:SamplingLogDensity})
+    ℓ = d[]
+    hypercube_transform(ℓ, rand(rng, dimension(ℓ)))
+end
 
 """
 $(SIGNATURES)

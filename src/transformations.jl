@@ -17,9 +17,13 @@ dimension(ℓ::LogDensityTransformation) = dimension(ℓ.ℓ)
 ####
 
 struct Linear{L,M,S,T} <: LogDensityTransformation
+    "the parent log density"
     ℓ::L
+    "the matrix that multiplies coordinates"
     A::M
+    "a form so that `divA \\ x ≈ A \\ x`, yet it is fast"
     divA::S
+    "``log(abs(det(A)))``"
     logabsdetA::T
 end
 
@@ -35,23 +39,20 @@ _fastdiv(A::Diagonal) = A
 """
 $(SIGNATURES)
 
-Internal method for logabsdet, work around
-https://github.com/JuliaLang/julia/issues/32988
-"""
-_logabsdet(A::AbstractMatrix) = first(logabsdet(A))
-_logabsdet(A::Diagonal) = sum(log ∘ abs, diag(A))
-
-"""
-$(SIGNATURES)
-
-Transform a distribution on `x` to `y = Ax`, where `A` is a conformable square matrix.
+Transform a distribution on `x` to `y = Ax`, where `A` is a conformable square matrix or a
+`UniformScaling` (eg `I * scalar`).
 
 Since the log Jacobian is constant, it is dropped in the log density.
 """
 function linear(A::AbstractMatrix, ℓ)
     K = dimension(ℓ)
     @argcheck checksquare(A) == K
-    Linear(ℓ, A, _fastdiv(A), _logabsdet(A))
+    Linear(ℓ, A, _fastdiv(A), first(logabsdet(A)))
+end
+
+# special-cased, not an AbstractMatrix
+function linear(A::UniformScaling, ℓ)
+    Linear(ℓ, A, A, log(abs(A.λ)) * dimension(ℓ))
 end
 
 logdensity(ℓ::Linear, x) = logdensity(ℓ.ℓ, ℓ.divA \ x) - ℓ.logabsdetA
@@ -132,16 +133,38 @@ function _find_x_norm(y, k; x = zero(y), atol = 16 * eps(y))
     error("internal error: reached maximum number of iterations, y = $(y), k = $(k)")
 end
 
-function logdensity_and_gradient(ℓ::Elongate, y)
-    @unpack ℓ, k = ℓ
-    d = dimension(ℓ)
+"""
+Helper function for elongate logdensity calculations.
+
+See source code immediately below for the intepretation of arguments.
+"""
+function _elongate_x_xnorm2_Δℓ_D(y, k, d)
     ynorm = norm(y, 2)
     xnorm = _find_x_norm(ynorm, k)
     xnorm2 = abs2(xnorm)
     D = (1 + xnorm2)^(-k)       # x = D ⋅ y
     x = D .* y
+    # NOTE derivation for Jacobian:
+    # ∂y / ∂x = I(d) * (1 + xnorm2)^k + 2*(x*x')*(k*(1+xnorm2)^(k-1)) =
+    #          (1 + xnorm2)^k * (I(d) + (2*k)*(x*x')/(1+xnorm2))
+    Δℓ = k * d * log1p(xnorm2) + log1p(2 * k * xnorm2 / (1 + xnorm2))
+    x, xnorm2, Δℓ, D
+end
+
+function logdensity(ℓ::Elongate, y)
+    @unpack ℓ, k = ℓ
+    d = dimension(ℓ)
+    x, xnorm2, Δℓ, _ = _elongate_x_xnorm2_Δℓ_D(y, k, d)
+    ℓx = logdensity(ℓ, x)
+    ℓx - Δℓ
+end
+
+function logdensity_and_gradient(ℓ::Elongate, y)
+    @unpack ℓ, k = ℓ
+    d = dimension(ℓ)
+    x, xnorm2, Δℓ, D = _elongate_x_xnorm2_Δℓ_D(y, k, d)
     ℓx, ∇ℓx = logdensity_and_gradient(ℓ, x)
-    ℓy = ℓx - (k*d - 1) * log1p(xnorm2) - log1p((1 + 2*k) * xnorm2)
+    ℓy = ℓx - Δℓ
     A = 1 + xnorm2
     B = 1 + (1 + 2*k) * xnorm2
     L1 = (I - (2 * k / B) .* (x * x')) * ∇ℓx .* D
