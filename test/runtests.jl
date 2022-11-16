@@ -1,16 +1,20 @@
-using LogDensityTestSuite, Test, Statistics, LinearAlgebra, Distributions, StatsFuns
-import ForwardDiff
+using LogDensityTestSuite, Test, Statistics, LinearAlgebra, Distributions, StatsFuns, FiniteDifferences
 using LogDensityProblems: capabilities, dimension, logdensity, logdensity_and_gradient,
     LogDensityOrder
-using LogDensityTestSuite: hypercube_dimension, _find_x_norm, weight, weight_and_gradient
+using LogDensityTestSuite: hypercube_dimension, _find_x_norm, _elongate_x_xnorm2_Δℓ_D,
+    weight, weight_and_gradient
 
-"Test gradient with automatic differentiation."
-function test_gradient(ℓ, x; atol = √eps())
+"""
+Test gradient with automatic differentiation.
+
+NOTE: default tolerances are generous because we are using finite differences.
+"""
+function test_gradient(ℓ, x; atol = √eps(), rtol = 0.01)
     l, g = logdensity_and_gradient(ℓ, x)
     l2 = logdensity(ℓ, x)
-    g2 = ForwardDiff.gradient(x -> logdensity(ℓ, x), x)
-    @test l ≈ l2 atol = atol
-    @test g ≈ g2 atol = atol
+    g2 = grad(central_fdm(5, 1), x -> logdensity(ℓ, x), x)[1]
+    @test l ≈ l2 atol = atol rtol = rtol
+    @test g ≈ g2 atol = atol rtol = rtol
 end
 
 ####
@@ -91,11 +95,24 @@ end
         x = _find_x_norm(y, k)
         @test y ≈ x * (1 + abs2(x))^k
     end
+
+    for d in 1:5
+        for k in range(0.1, 2, length = 10)
+            for _ in 1:10
+                y = randn(d)
+                x, xnorm2, Δℓ, D = _elongate_x_xnorm2_Δℓ_D(y, k, d)
+                @test x .* (1 + dot(x, x))^k ≈ y
+                @test xnorm2 ≈ dot(x, x)
+                ∂y∂x = jacobian(central_fdm(5, 1), x -> x .* (1 + dot(x, x))^k, x)[1]
+                @test logabsdet(∂y∂x)[1] ≈ Δℓ
+            end
+        end
+    end
 end
 
 @testset "elongate" begin
     K, N = 5, 1000
-    ℓ = elongate(0.5, StandardMultivariateNormal(5))
+    ℓ = elongate(0.5, StandardMultivariateNormal(K))
     @test dimension(ℓ) == hypercube_dimension(ℓ) == K
     @test capabilities(ℓ) == LogDensityOrder(1)
     Z = samples(ℓ, N)
@@ -159,7 +176,7 @@ end
     # test at sample values
     for x in eachcol(Z)
         αx, ∇αx = weight_and_gradient(α, x)
-        @test ∇αx ≈ ForwardDiff.gradient(x -> weight(α, x), x)
+        @test ∇αx ≈ grad(central_fdm(5, 1), x -> weight(α, x), x)
         test_gradient(ℓ, x)
     end
     @test_throws ArgumentError directional_weight(zeros(5))

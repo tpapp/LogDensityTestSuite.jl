@@ -122,7 +122,6 @@ Absolute tolerance `atol` should not be set *too* low to avoid occasional numeri
 near the root.
 """
 function _find_x_norm(y, k; x = zero(y), atol = 16 * eps(y))
-    iszero(y) && return y
     for _ in 1:100
         x2 = abs2(x)
         A = (1 + x2)^k
@@ -134,16 +133,38 @@ function _find_x_norm(y, k; x = zero(y), atol = 16 * eps(y))
     error("internal error: reached maximum number of iterations, y = $(y), k = $(k)")
 end
 
-function logdensity_and_gradient(ℓ::Elongate, y)
-    @unpack ℓ, k = ℓ
-    d = dimension(ℓ)
+"""
+Helper function for elongate logdensity calculations.
+
+See source code immediately below for the intepretation of arguments.
+"""
+function _elongate_x_xnorm2_Δℓ_D(y, k, d)
     ynorm = norm(y, 2)
     xnorm = _find_x_norm(ynorm, k)
     xnorm2 = abs2(xnorm)
     D = (1 + xnorm2)^(-k)       # x = D ⋅ y
     x = D .* y
+    # NOTE derivation for Jacobian:
+    # ∂y / ∂x = I(d) * (1 + xnorm2)^k + 2*(x*x')*(k*(1+xnorm2)^(k-1)) =
+    #          (1 + xnorm2)^k * (I(d) + (2*k)*(x*x')/(1+xnorm2))
+    Δℓ = k * d * log1p(xnorm2) + log1p(2 * k * xnorm2 / (1 + xnorm2))
+    x, xnorm2, Δℓ, D
+end
+
+function logdensity(ℓ::Elongate, y)
+    @unpack ℓ, k = ℓ
+    d = dimension(ℓ)
+    x, xnorm2, Δℓ, _ = _elongate_x_xnorm2_Δℓ_D(y, k, d)
+    ℓx = logdensity(ℓ, x)
+    ℓx - Δℓ
+end
+
+function logdensity_and_gradient(ℓ::Elongate, y)
+    @unpack ℓ, k = ℓ
+    d = dimension(ℓ)
+    x, xnorm2, Δℓ, D = _elongate_x_xnorm2_Δℓ_D(y, k, d)
     ℓx, ∇ℓx = logdensity_and_gradient(ℓ, x)
-    ℓy = ℓx - (k*d - 1) * log1p(xnorm2) - log1p((1 + 2*k) * xnorm2)
+    ℓy = ℓx - Δℓ
     A = 1 + xnorm2
     B = 1 + (1 + 2*k) * xnorm2
     L1 = (I - (2 * k / B) .* (x * x')) * ∇ℓx .* D
