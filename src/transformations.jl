@@ -122,6 +122,7 @@ Absolute tolerance `atol` should not be set *too* low to avoid occasional numeri
 near the root.
 """
 function _find_x_norm(y, k; x = zero(y), atol = 16 * eps(y))
+    iszero(y) && return y
     for _ in 1:100
         x2 = abs2(x)
         A = (1 + x2)^k
