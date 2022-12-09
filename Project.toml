@@ -1,7 +1,7 @@
 name = "LogDensityTestSuite"
 uuid = "feb245ec-c857-584e-a66a-22324acf10c6"
 authors = ["Tamas K. Papp <tkpapp@gmail.com>"]
-version = "0.6.1"
+version = "0.6.2"
 
 [deps]
 ArgCheck = "dce04be8-c92d-5529-be00-80e4d2c0e197"
@@ -24,7 +24,7 @@ MCMCDiagnosticTools = "0.1"
 Sobol = "1"
 StatsFuns = "0.9, 1"
 UnPack = "1"
-julia = "1.8"
+julia = "1.6"
 
 [extras]
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"

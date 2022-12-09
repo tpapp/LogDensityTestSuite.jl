@@ -86,7 +86,7 @@ end
 
     @testset "MvNormal triangular" begin
         Σ = Symmetric(Q * D * Q')
-        A = cholesky(Σ, NoPivot()).L
+        A = cholesky(Σ).L
         test_mvnormal(μ, A, Σ)
     end
 
