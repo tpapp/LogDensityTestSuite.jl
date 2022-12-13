@@ -113,7 +113,7 @@ end
                 @test x .* (1 + dot(x, x))^k ≈ y
                 @test xnorm2 ≈ dot(x, x)
                 ∂y∂x = jacobian(central_fdm(5, 1), x -> x .* (1 + dot(x, x))^k, x)[1]
-                @test logabsdet(∂y∂x)[1] ≈ Δℓ
+                @test logabsdet(∂y∂x)[1] ≈ Δℓ atol = √eps()
             end
         end
     end
