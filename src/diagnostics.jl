@@ -49,7 +49,7 @@ Calculate univariate bin counts of `xs` (a vector of real numbers), using the gi
 boundaries. Effective sample size is saved.
 """
 function bin_counts(uqb::UnivariateQuantileBoundaries, xs)
-    @unpack boundaries = uqb
+    (; boundaries) = uqb
     bin_counts = zeros(1 + length(boundaries))
     for x in xs
         bin_counts[searchsortedfirst(boundaries, x)] += 1
@@ -74,7 +74,7 @@ and `σ` (the standard deviation).
 $(ESS_CORRECTION_DOC)
 """
 function _normal_approximation(ubc::UnivariateBinCounts; ess_correction::Bool = true)
-    @unpack N, τ, bin_counts = ubc
+    (; N, τ, bin_counts) = ubc
     π = 1 / length(bin_counts)
     μ = N * π
     σ = √(N / (ess_correction ? τ : one(τ)) * π * (1 - π))
@@ -91,8 +91,8 @@ Uses a normal approxiation with continuity correction.
 $(ESS_CORRECTION_DOC)
 """
 function two_sided_pvalues(ubc::UnivariateBinCounts; ess_correction::Bool = true)
-    @unpack μ, σ = _normal_approximation(ubc; ess_correction = ess_correction)
-    @unpack bin_counts = ubc
+    (; μ, σ) = _normal_approximation(ubc; ess_correction)
+    (; bin_counts) = ubc
     # use a normal approximation for p-values
     qs = normcdf.((bin_counts .+ 0.5 .- μ) ./ σ)
     map(q -> (q > 0.5 ? 1 - q : q) * 2, qs)
@@ -134,8 +134,8 @@ $(ESS_CORRECTION_DOC)
 function print_ascii_plot(io::IO, ubc::UnivariateBinCounts; canvas_width = 80,
                           p_colname = "-log10(p)", bin_colname = "bin", α = 0.05,
                           count_colname = "count", padding = 0.05, ess_correction = true)
-    @unpack μ, σ = _normal_approximation(ubc)
-    @unpack N, bin_counts = ubc
+    (; μ, σ) = _normal_approximation(ubc)
+    (; N, bin_counts) = ubc
     @argcheck 0 < α < 0.5
     @argcheck canvas_width ≥ 10
     z = norminvcdf(α / 2)
