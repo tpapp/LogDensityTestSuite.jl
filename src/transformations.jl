@@ -152,7 +152,7 @@ function _elongate_x_xnorm2_Δℓ_D(y, k, d)
 end
 
 function logdensity(ℓ::Elongate, y)
-    @unpack ℓ, k = ℓ
+    (; ℓ, k) = ℓ
     d = dimension(ℓ)
     x, xnorm2, Δℓ, _ = _elongate_x_xnorm2_Δℓ_D(y, k, d)
     ℓx = logdensity(ℓ, x)
@@ -160,7 +160,7 @@ function logdensity(ℓ::Elongate, y)
 end
 
 function logdensity_and_gradient(ℓ::Elongate, y)
-    @unpack ℓ, k = ℓ
+    (; ℓ, k) = ℓ
     d = dimension(ℓ)
     x, xnorm2, Δℓ, D = _elongate_x_xnorm2_Δℓ_D(y, k, d)
     ℓx, ∇ℓx = logdensity_and_gradient(ℓ, x)
@@ -173,7 +173,7 @@ function logdensity_and_gradient(ℓ::Elongate, y)
 end
 
 function hypercube_transform(ℓ::Elongate, z)
-    @unpack ℓ, k = ℓ
+    (; ℓ, k) = ℓ
     x = hypercube_transform(ℓ, z)
     (1 + sum(abs2, x))^k .* x
 end

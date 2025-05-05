@@ -49,7 +49,7 @@ end
 hypercube_dimension(ℓ::Mix) = max(hypercube_dimension(ℓ.ℓ1), hypercube_dimension(ℓ.ℓ2)) + 1
 
 function hypercube_transform(ℓ::Mix, x)
-    @unpack α, ℓ1, ℓ2 = ℓ
+    (; α, ℓ1, ℓ2) = ℓ
     if x[end] < weight(α, x[1:dimension(ℓ)])
         hypercube_transform(ℓ1, @view x[1:hypercube_dimension(ℓ1)])
     else
@@ -60,7 +60,7 @@ end
 dimension(ℓ::Mix) = dimension(ℓ.ℓ1)
 
 function logdensity_and_gradient(ℓ::Mix, x)
-    @unpack α, ℓ1, ℓ2 = ℓ
+    (; α, ℓ1, ℓ2) = ℓ
     ℓ1x, ∇ℓ1x = logdensity_and_gradient(ℓ1, x)
     ℓ2x, ∇ℓ2x = logdensity_and_gradient(ℓ2, x)
     αx, ∇αx = weight_and_gradient(α, x)
@@ -87,7 +87,7 @@ function directional_weight(y)
 end
 
 function weight_and_gradient(α::DirectionalWeight, x)
-    @unpack y = α
+    (; y) = α
     αx = logistic(dot(x, y))
     ∇αx = (αx * (1 - αx)) .* y
     αx, ∇αx
