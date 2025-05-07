@@ -23,7 +23,8 @@ using Printf: @sprintf
 import Random                   # don't import anything since we only use it in one place
 using Sobol: next!, SobolSeq
 using Statistics: quantile
-using StatsFuns: norminvcdf, normcdf, logaddexp, logistic
+using StatsFuns: norminvcdf, normcdf
+using LogExpFunctions: logaddexp, logistic
 
 include("generic.jl")
 include("primitives.jl")

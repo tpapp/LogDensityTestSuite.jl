@@ -49,7 +49,7 @@ end
 """
 $(SIGNATURES)
 
-`N` samples from `ℓ`, as columns of a matrix.
+Draw `N` independent samples from `ℓ`, as columns of a matrix.
 """
 function samples(ℓ::SamplingLogDensity, N::Integer)
     K = hypercube_dimension(ℓ)

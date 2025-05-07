@@ -1,8 +1,9 @@
-using LogDensityTestSuite, Test, Statistics, LinearAlgebra, Distributions, StatsFuns, FiniteDifferences
+using LogDensityTestSuite, Test, Statistics, LinearAlgebra, Distributions, FiniteDifferences
 using LogDensityProblems: capabilities, dimension, logdensity, logdensity_and_gradient,
     LogDensityOrder
 using LogDensityTestSuite: hypercube_dimension, _find_x_norm, _elongate_x_xnorm2_Δℓ_D,
     weight, weight_and_gradient
+using LogExpFunctions: logaddexp, logistic
 
 """
 Test gradient with automatic differentiation.
@@ -51,10 +52,6 @@ end
 ####
 
 @testset "multivariate normal using transform" begin
-    K = 4
-    Q = qr(reshape(range(0.1; step = 0.05, length = K * K), K, K)).Q
-    D = Diagonal(range(1; step = .1, length = K))
-    μ = collect(range(0.04; step = 0.2, length = K))
 
     function test_mvnormal(μ, A, Σ)
         K = size(Σ, 1)
@@ -72,6 +69,9 @@ end
         @test norm(cov(Z; dims = 2) .- Σ, Inf) ≤ 0.07
     end
 
+    K = 4
+    μ = collect(range(0.04; step = 0.2, length = K))
+
     @testset "MvNormal Diagonal" begin
         A = Diagonal(2 .* ones(K))
         Σ = A * A'
@@ -84,15 +84,27 @@ end
         test_mvnormal(μ, A, Σ)
     end
 
-    @testset "MvNormal triangular" begin
-        Σ = Symmetric(Q * D * Q')
-        A = cholesky(Σ).L
-        test_mvnormal(μ, A, Σ)
+    @testset "MvNormal triangular and full" begin
+        Q = qr(reshape(range(0.1; step = 0.05, length = K * K), K, K)).Q
+        D = Diagonal(range(1; step = .1, length = K))
+        @testset "MvNormal triangular" begin
+            Σ = Symmetric(Q * D * Q')
+            A = cholesky(Σ).L
+            test_mvnormal(μ, A, Σ)
+        end
+        @testset "MvNormal full" begin
+            Σ = Symmetric(Q * D * Q')
+            A = Q * Diagonal(.√diag(D))
+            test_mvnormal(μ, A, Σ)
+        end
     end
 
-    @testset "MvNormal full" begin
-        Σ = Symmetric(Q * D * Q')
-        A = Q * Diagonal(.√diag(D))
+    @testset "MvNormal ill conditioned" begin
+        μ = [-1.729922440774685, -0.011762500688978205, 0.11423091067230899, 0.05085717388622323, 0.09102774773399233, -0.3769237300508154, -1.1645971596831883, -1.4196407006756644, 0.07406060991401947]
+        D = Diagonal([0.31285715405356296, 1.6321047397137334, 1.9304214045496948, 0.9408515651923572, 0.632832415315841, 0.3994529605030148, 0.9479547802750243, 0.000686699019868418, 0.14074551354895906])
+        C = [1.0 -0.625893845478092 -0.8607538232958145 0.4906036948283603 -0.045129301268019346 -0.9798256449980116 -0.09448716779625055 0.1972478332046149 -0.38125524332165456; 0.0 0.7799082601131022 0.22963314745353192 -0.8390321758549951 -0.2940681265758735 0.05788305453491861 -0.30348581879657555 -0.3395815944065493 0.40817023926937634; 0.0 0.0 0.45428127109998945 0.07704183020878513 0.5013749270904165 0.09940288184055725 -0.4898077520422466 -0.04390387380845317 -0.39358273046921877; 0.0 0.0 0.0 0.22225566111771966 -0.5034002085122711 0.1540822287067389 -0.52831870161212 -0.20197326086456527 -0.4230725997740589; 0.0 0.0 0.0 0.0 0.6377293278924043 0.002108173376346147 -0.563819920556515 0.07024142256309863 0.20409522211102057; 0.0 0.0 0.0 0.0 0.0 0.05444765270890811 0.21770654511030652 0.4167989822452558 0.4096707796964533; 0.0 0.0 0.0 0.0 0.0 0.0 0.12102564140379203 0.6237333486866049 -0.1142510107612157; 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.4851374500990013 -0.2027266958462243; 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.30084429646746724]
+        A = D * C'
+        Σ = Symmetric(D * (C'*C) * D)
         test_mvnormal(μ, A, Σ)
     end
 end
