@@ -1,4 +1,4 @@
-using LogDensityTestSuite, Test, Statistics, LinearAlgebra, Distributions, StatsFuns, FiniteDifferences
+using LogDensityTestSuite, Test, Statistics, LinearAlgebra, Distributions, FiniteDifferences
 using LogDensityProblems: capabilities, dimension, logdensity, logdensity_and_gradient,
     LogDensityOrder
 using LogDensityTestSuite: hypercube_dimension, _find_x_norm, _elongate_x_xnorm2_Δℓ_D,
@@ -51,10 +51,6 @@ end
 ####
 
 @testset "multivariate normal using transform" begin
-    K = 4
-    Q = qr(reshape(range(0.1; step = 0.05, length = K * K), K, K)).Q
-    D = Diagonal(range(1; step = .1, length = K))
-    μ = collect(range(0.04; step = 0.2, length = K))
 
     function test_mvnormal(μ, A, Σ)
         K = size(Σ, 1)
@@ -84,10 +80,21 @@ end
         test_mvnormal(μ, A, Σ)
     end
 
-    @testset "MvNormal triangular" begin
-        Σ = Symmetric(Q * D * Q')
-        A = cholesky(Σ).L
-        test_mvnormal(μ, A, Σ)
+    @testset "MvNormal triangular and full" begin
+        K = 4
+        Q = qr(reshape(range(0.1; step = 0.05, length = K * K), K, K)).Q
+        D = Diagonal(range(1; step = .1, length = K))
+        μ = collect(range(0.04; step = 0.2, length = K))
+        @testset "MvNormal triangular" begin
+            Σ = Symmetric(Q * D * Q')
+            A = cholesky(Σ).L
+            test_mvnormal(μ, A, Σ)
+        end
+        @testset "MvNormal full" begin
+            Σ = Symmetric(Q * D * Q')
+            A = Q * Diagonal(.√diag(D))
+            test_mvnormal(μ, A, Σ)
+        end
     end
 
     @testset "MvNormal full" begin
