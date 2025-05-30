@@ -1,9 +1,40 @@
 using LogDensityTestSuite, Test, Statistics, LinearAlgebra, Distributions, FiniteDifferences
 using LogDensityProblems: capabilities, dimension, logdensity, logdensity_and_gradient,
     LogDensityOrder
-using LogDensityTestSuite: hypercube_dimension, _find_x_norm, _elongate_x_xnorm2_Δℓ_D,
-    weight, weight_and_gradient
+using LogDensityTestSuite: hypercube_dimension, source_to_destination, destination_to_source,
+    DensityMode, DensityGradientMode, _find_x_norm, weight, weight_and_gradient
 using LogExpFunctions: logaddexp, logistic
+
+"Finite difference method used in tests."
+const FDM = central_fdm(5, 1)
+
+# for comparing ∂c∂y
+Base.isapprox(::LogDensityTestSuite.Zeros, a; atol) = all(a -> abs(a) ≤ atol, a)
+
+"""
+Test consistency of `transformation` by comparing source <-> destination calculations,
+including Jacobians, determinants, etc.
+
+`D` is the dimension of inputs. `N` is the number of samples to calculate.
+"""
+function test_transformation_consistency(transformation, D; N = 100, atol = √eps())
+    for _ in 1:N
+        x = randn(D)
+        y = source_to_destination(transformation, x)
+        ∂y∂x = jacobian(FDM, x -> source_to_destination(transformation, x), x)[1]
+        c = logabsdet(∂y∂x)[1]
+        x1 = destination_to_source(DensityMode(), transformation, y)
+        @test x1.x ≈ x atol = atol
+        @test x1.c ≈ c atol = atol
+        x2 = destination_to_source(DensityGradientMode(), transformation, y)
+        @test x2.x ≈ x atol = atol
+        @test x2.c ≈ c atol = atol
+        # NOTE: line below implemented this way because Inv only supports v'*M
+        @test mapreduce(r -> x2.∂x∂y⊤ * r, hcat, eachrow(∂y∂x)) ≈ I(D) atol = atol
+        ∂c∂y = grad(FDM, y -> destination_to_source(DensityMode(), transformation, y).c, y)[1]
+        @test x2.∂c∂y ≈ ∂c∂y atol = atol
+    end
+end
 
 """
 Test gradient with automatic differentiation.
@@ -13,7 +44,7 @@ NOTE: default tolerances are generous because we are using finite differences.
 function test_gradient(ℓ, x; atol = √eps(), rtol = 0.01)
     l, g = logdensity_and_gradient(ℓ, x)
     l2 = logdensity(ℓ, x)
-    g2 = grad(central_fdm(5, 1), x -> logdensity(ℓ, x), x)[1]
+    g2 = grad(FDM, x -> logdensity(ℓ, x), x)[1]
     @test l ≈ l2 atol = atol rtol = rtol
     @test g ≈ g2 atol = atol rtol = rtol
 end
@@ -43,7 +74,7 @@ end
     # into the right calls. everything else is tested using samples.
     μ = [0.5, 0.3]
     L = [0.1 0.3; 0.9 0.7]
-    ℓ = shift(μ, linear(L, StandardMultivariateNormal(2)))
+    ℓ = (shift(μ) ∘ linear(L))(StandardMultivariateNormal(2))
     @test mean(rand(ℓ) for _ in 1:10000) ≈ μ atol = 0.05
 end
 
@@ -51,13 +82,24 @@ end
 #### transformations
 ####
 
+@testset "transformation mappings" begin
+    # a “random” matrix
+    A = [1.2735208104831561 -1.457297079176796 1.319353974452655;
+         0.4689489441596014 0.16213981899823227 0.8220450119958059;
+         -0.05684164000044907 0.533081876167392 0.3732266922991697]
+    test_transformation_consistency(linear(A), size(A, 1))
+    test_transformation_consistency(shift(A[:, 1]), size(A, 1))
+    test_transformation_consistency(elongate(1.2), 3)
+    test_transformation_consistency(elongate(0.4), 3)
+    test_transformation_consistency(funnel(), 3)
+end
+
 @testset "multivariate normal using transform" begin
 
     function test_mvnormal(μ, A, Σ)
-        K = size(Σ, 1)
-        ℓ = shift(μ, linear(A, StandardMultivariateNormal(K)))
+        ℓ = (shift(μ) ∘ linear(A))(StandardMultivariateNormal(length(μ)))
         d = MvNormal(μ, Σ)
-        @test dimension(ℓ) == hypercube_dimension(ℓ) == K
+        @test dimension(ℓ) == hypercube_dimension(ℓ) == length(μ)
         @test capabilities(ℓ) == LogDensityOrder(1)
         Z = samples(ℓ, 1000)
         for x in eachcol(Z)
@@ -72,6 +114,12 @@ end
     K = 4
     μ = collect(range(0.04; step = 0.2, length = K))
 
+    @testset "MvNormal standard" begin
+        N = 3
+        D = Diagonal(ones(3))
+        test_mvnormal(zeros(N), D, D)
+    end
+
     @testset "MvNormal Diagonal" begin
         A = Diagonal(2 .* ones(K))
         Σ = A * A'
@@ -79,8 +127,8 @@ end
     end
 
     @testset "MvNormal Diagonal w/ UniformScaling" begin
-        A = I * 0.4
-        Σ = (A * A')(K)
+        A = I(K) * 0.4
+        Σ = (A * A')
         test_mvnormal(μ, A, Σ)
     end
 
@@ -116,24 +164,11 @@ end
         x = _find_x_norm(y, k)
         @test y ≈ x * (1 + abs2(x))^k
     end
-
-    for d in 1:5
-        for k in range(0.1, 2, length = 10)
-            for _ in 1:10
-                y = randn(d)
-                x, xnorm2, Δℓ, D = _elongate_x_xnorm2_Δℓ_D(y, k, d)
-                @test x .* (1 + dot(x, x))^k ≈ y
-                @test xnorm2 ≈ dot(x, x)
-                ∂y∂x = jacobian(central_fdm(5, 1), x -> x .* (1 + dot(x, x))^k, x)[1]
-                @test logabsdet(∂y∂x)[1] ≈ Δℓ atol = √eps()
-            end
-        end
-    end
 end
 
 @testset "elongate" begin
     K, N = 5, 1000
-    ℓ = elongate(0.5, StandardMultivariateNormal(K))
+    ℓ = elongate(0.5)(StandardMultivariateNormal(K))
     @test dimension(ℓ) == hypercube_dimension(ℓ) == K
     @test capabilities(ℓ) == LogDensityOrder(1)
     Z = samples(ℓ, N)
@@ -151,7 +186,7 @@ end
     K, N = 5, 1000
     ℓ1 = StandardMultivariateNormal(K)
     μ2 = fill(1.7, K)
-    ℓ2 = shift(μ2, linear(Diagonal(fill(0.01, K)), StandardMultivariateNormal(K)))
+    ℓ2 = (shift(μ2) ∘ linear(Diagonal(fill(0.01, K))))(StandardMultivariateNormal(K))
     for α in [0, √eps(), 0.7, 1-√eps(), 1] # extreme, near-extreme, interior α
         ℓ = mix(α, ℓ1, ℓ2)
         @test dimension(ℓ) == K
@@ -179,14 +214,14 @@ end
         @test mean(Z; dims = 2) ≈ (1 - α) .* μ2 atol = 0.02
     end
 
-    @test_throws ArgumentError mix(0.5, ℓ1, StandardMultivariateNormal(K + 1))
+    @test_throws DimensionMismatch mix(0.5, ℓ1, StandardMultivariateNormal(K + 1))
 end
 
 @testset "directional mixture" begin
     K, N = 5, 1000
     ℓ1 = StandardMultivariateNormal(K)
     μ2 = fill(1.7, K)
-    ℓ2 = shift(μ2, linear(Diagonal(fill(0.01, K)), StandardMultivariateNormal(K)))
+    ℓ2 = (shift(μ2) ∘ linear(Diagonal(fill(0.01, K))))(StandardMultivariateNormal(K))
     α = directional_weight(ones(K))
     ℓ = mix(α, ℓ1, ℓ2)
     @test dimension(ℓ) == K

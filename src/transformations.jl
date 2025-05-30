@@ -2,26 +2,89 @@
 ##### transformations
 #####
 
+####
+#### generic implementation
+####
+
 """
 $(TYPEDEF)
 
-Abstract type used internally for simplifying forwarding. Assumes a slot `ℓ`, and forwards
-`dimension` to it.
+Abstract type used internally for simpler code.
 """
-abstract type LogDensityTransformation <: SamplingLogDensity end
+struct TransformedLogDensity{L,T} <: SamplingLogDensity
+    source::L
+    transformation::T
+end
 
-dimension(ℓ::LogDensityTransformation) = dimension(ℓ.ℓ)
+dimension(ℓ::TransformedLogDensity) = dimension(ℓ.source)
+
+"""
+$(FUNCTIONNAME)(transformation, x)
+
+Return the transformed `x`. Internal, for implementing transformations.
+"""
+function source_to_destination end
+
+"""
+[`destination_to_source`](@ref) returns `(; x, c)`. Internal, for implementing
+transformations.
+"""
+struct DensityMode end
+
+"""
+[`destination_to_source`](@ref) returns `(; x, c, ∂x∂y)`. Internal, for implementing
+transformations.
+"""
+struct DensityGradientMode end
+
+"See [`destination_to_source`](@ref)."
+const ValidModes = Union{DensityMode,DensityGradientMode}
+
+"""
+$(FUNCTIONNAME)(mode::ValidModes, transformation, y)
+
+The inverse of [`source_to_destination`](@ref). `mode` determines what is calculated,
+see [`DensityMode`](@ref) and [`DensityGradientMode`](@ref). Implementations can assume
+that `mode` is either of these.
+"""
+function destination_to_source end
+
+function hypercube_transform(ℓ::TransformedLogDensity, u)
+    (; source, transformation) = ℓ
+    x = hypercube_transform(source, u)
+    source_to_destination(transformation, x)
+end
+
+function logdensity(ℓ::TransformedLogDensity, y)
+    (; source, transformation) = ℓ
+    (; x, c) = destination_to_source(DensityMode(), transformation, y)
+    logdensity(source, x) - c
+end
+
+function logdensity_and_gradient(ℓ::TransformedLogDensity, y)
+    (; source, transformation) = ℓ
+    (; x, c, ∂x∂y⊤, ∂c∂y) = destination_to_source(DensityGradientMode(), transformation, y)
+    ℓx, ∇ℓx = logdensity_and_gradient(source, x)
+    ℓy = ℓx - c
+    ∇ℓy = ∂x∂y⊤ * ∇ℓx - ∂c∂y
+    ℓy, ∇ℓy
+end
+
+"Log density transformation. Internal, for organizing code."
+abstract type LogDensityTransformation end
+
+function (transformation::LogDensityTransformation)(source)
+    TransformedLogDensity(source, transformation)
+end
 
 ####
 #### linear transformation
 ####
 
-struct Linear{L,M,S,T} <: LogDensityTransformation
-    "the parent log density"
-    ℓ::L
-    "the matrix that multiplies coordinates"
+struct Linear{M,S,T} <: LogDensityTransformation
+    "the matrix-like object that multiplies coordinates"
     A::M
-    "a form so that `divA \\ x ≈ A \\ x`, yet it is fast"
+    "a faster representation with the property `divA \\ x ≈ A \\ x`"
     divA::S
     "``log(abs(det(A)))``"
     logabsdetA::T
@@ -39,37 +102,53 @@ _fastdiv(A::Diagonal) = A
 """
 $(SIGNATURES)
 
-Transform a distribution on `x` to `y = Ax`, where `A` is a conformable square matrix or a
-`UniformScaling` (eg `I * scalar`).
-
-Since the log Jacobian is constant, it is dropped in the log density.
+Transform a distribution on `x` to `y = Ax`, where `A` is a conformable square matrix.
 """
-function linear(A::AbstractMatrix, ℓ)
-    K = dimension(ℓ)
-    @argcheck checksquare(A) == K
-    Linear(ℓ, A, _fastdiv(A), first(logabsdet(A)))
+function linear(A::AbstractMatrix)
+    checksquare(A)
+    Linear(A, _fastdiv(A), first(logabsdet(A)))
 end
 
-# special-cased, not an AbstractMatrix
-function linear(A::UniformScaling, ℓ)
-    Linear(ℓ, A, A, log(abs(A.λ)) * dimension(ℓ))
+source_to_destination(transform::Linear, x) = transform.A * x
+
+"""
+A lazy inverse wrapper, similar in concept to `LinearAlgebra.Adjoint`.
+
+Only supports `matrix` * vector, the sole purpose is to make it easier for
+implementations to return in inverse (ie `∂y∂x` instead of `∂x∂y`) for applying the
+chain rule for gradients
+
+Internal, not exported.
+"""
+struct Inv{M}
+    A::M
 end
 
-logdensity(ℓ::Linear, x) = logdensity(ℓ.ℓ, ℓ.divA \ x) - ℓ.logabsdetA
+(Base.:*)(B::Inv, v::AbstractVector) = B.A \ v
 
-function logdensity_and_gradient(ℓ::Linear, x)
-    f, ∇f = logdensity_and_gradient(ℓ.ℓ, ℓ.divA \ x)
-    f - ℓ.logabsdetA, (ℓ.divA') \ ∇f # note here \ is needed because / is not defined for LU
+"""
+A placeholder for a vector of zeros, in particular `∂c∂y`. Only supports being subtracted.
+"""
+struct Zeros end
+
+(Base.:-)(a, ::Zeros) = a
+
+function destination_to_source(mode::ValidModes, transform::Linear, y)
+    (; A, divA, logabsdetA) = transform
+    x = divA \ y
+    c = logabsdetA
+    if mode ≡ DensityMode()
+        (; x, c)
+    else
+        (; x, c, ∂x∂y⊤ = Inv(divA'), ∂c∂y = Zeros())
+    end
 end
-
-hypercube_transform(ℓ::Linear, x) = ℓ.A * hypercube_transform(ℓ.ℓ, x)
 
 ####
 #### shift (translation)
 ####
 
-struct Shift{L, T <: AbstractVector} <: LogDensityTransformation
-    ℓ::L
+struct Shift{T <: AbstractVector} <: LogDensityTransformation
     b::T
 end
 
@@ -78,24 +157,26 @@ $(SIGNATURES)
 
 Transform a distribution on `x` to `y = x + b`, where `b` is a conformable vector.
 """
-function shift(b::AbstractVector, ℓ)
-    @argcheck length(b) == dimension(ℓ)
-    Shift(ℓ, b)
+shift(b::AbstractVector) = Shift(b)
+
+source_to_destination(transform::Shift, x) = x .+ transform.b
+
+function destination_to_source(mode::ValidModes, transform::Shift, y)
+    (; b) = transform
+    x = y .- b
+    c = zero(eltype(x))
+    if mode ≡ DensityMode()
+        (; x, c)
+    else
+        (; x, c, ∂x∂y⊤ = I, ∂c∂y = Zeros())
+    end
 end
-
-logdensity(ℓ::Shift, x) = logdensity(ℓ.ℓ, x - ℓ.b)
-
-# The log Jacobian adjustment is zero
-logdensity_and_gradient(ℓ::Shift, x) = logdensity_and_gradient(ℓ.ℓ, x - ℓ.b)
-
-hypercube_transform(ℓ::Shift, x) = ℓ.b .+ hypercube_transform(ℓ.ℓ, x)
 
 ####
 #### elongate
 ####
 
-struct Elongate{L, T <: Real} <: LogDensityTransformation
-    ℓ::L
+struct Elongate{T <: Real} <: LogDensityTransformation
     k::T
 end
 
@@ -105,8 +186,10 @@ $(SIGNATURES)
 Transform a distribution on `x` to ``y = (1 + ‖x‖²)ᵏ⋅x`` where ``‖ ‖`` is the Euclidean norm
 and `k` is a real number. `k > 0` values make the tails heavier.
 """
-function elongate(k::Real, ℓ)
-    Elongate(ℓ, k)
+elongate(k::Real,) = Elongate(k)
+
+function source_to_destination(transformation::Elongate, x)
+    (1 + sum(abs2, x))^transformation.k .* x
 end
 
 """
@@ -133,47 +216,109 @@ function _find_x_norm(y, k; x = zero(y), atol = 16 * eps(y))
     error("internal error: reached maximum number of iterations, y = $(y), k = $(k)")
 end
 
-"""
-Helper function for elongate logdensity calculations.
-
-See source code immediately below for the intepretation of arguments.
-"""
-function _elongate_x_xnorm2_Δℓ_D(y, k, d)
+function destination_to_source(mode::ValidModes, transformation::Elongate, y)
+    (; k) = transformation
+    n = length(y)
     ynorm = norm(y, 2)
     xnorm = _find_x_norm(ynorm, k)
-    xnorm2 = abs2(xnorm)
-    D = (1 + xnorm2)^(-k)       # x = D ⋅ y
+    X = abs2(xnorm)
+    D = (1 + X)^(-k)       # x = D ⋅ y
     x = D .* y
     # NOTE derivation for Jacobian:
     # ∂y / ∂x = I(d) * (1 + xnorm2)^k + 2*(x*x')*(k*(1+xnorm2)^(k-1)) =
     #          (1 + xnorm2)^k * (I(d) + (2*k)*(x*x')/(1+xnorm2))
-    Δℓ = k * d * log1p(xnorm2) + log1p(2 * k * xnorm2 / (1 + xnorm2))
-    x, xnorm2, Δℓ, D
+    c = k * n * log1p(X) + log1p(2 * k * X / (1 + X))
+    if mode ≡ DensityMode()
+        return (; x, c)
+    end
+    A = 1 + X
+    B = 1 + (1 + 2*k) * X
+    ∂x∂y⊤ = (I - (2 * k / B) .* Symmetric(x * x')) .* D
+    ∂c∂y = (k * (2 + B * n) / (A^(2*k) * B^2) * 2) .* y
+    (; x, c, ∂x∂y⊤, ∂c∂y)
 end
 
-function logdensity(ℓ::Elongate, y)
-    (; ℓ, k) = ℓ
-    d = dimension(ℓ)
-    x, xnorm2, Δℓ, _ = _elongate_x_xnorm2_Δℓ_D(y, k, d)
-    ℓx = logdensity(ℓ, x)
-    ℓx - Δℓ
+####
+#### funnel
+####
+
+struct Funnel <: LogDensityTransformation end
+
+"""
+$(SIGNATURES)
+
+Transform the distribution with the mapping `x ↦ y`, such that `y[begin] = x[begin]` and
+`y[i] = x[i] exp(x[begin])` for all other indices.
+"""
+funnel() = Funnel()
+
+"""
+A type that helps multiply by `[w, v, …, v]`. Internal.
+
+When not provided, `w = 1` is the default.
+"""
+struct AfterFirst{T,A<:AbstractUnitRange} <: AbstractVector{T}
+    w::T
+    v::T
+    axis::A
+end
+AfterFirst(v::T, axis) where T = AfterFirst(one(T), v, axis)
+Base.axes(a::AfterFirst) = (a.axis,)
+Base.size(a::AfterFirst) = (length(a.axis),)
+Base.getindex(a::AfterFirst{T}, i) where T = i == firstindex(a.axis) ? a.w : a.v
+
+function source_to_destination(transformation::Funnel, x)
+    map(*, x, AfterFirst(exp(x[begin]), axes(x, 1)))
 end
 
-function logdensity_and_gradient(ℓ::Elongate, y)
-    (; ℓ, k) = ℓ
-    d = dimension(ℓ)
-    x, xnorm2, Δℓ, D = _elongate_x_xnorm2_Δℓ_D(y, k, d)
-    ℓx, ∇ℓx = logdensity_and_gradient(ℓ, x)
-    ℓy = ℓx - Δℓ
-    A = 1 + xnorm2
-    B = 1 + (1 + 2*k) * xnorm2
-    L1 = (I - (2 * k / B) .* (x * x')) * ∇ℓx .* D
-    L2 = (((k * d - 1)/A + (1 + 2 * k)/B) * 2 * A^(1 - 2*k) / B) .* y
-    ℓy, L1 .- L2
+"""
+An implementation of the `∂x∂y⊤` partial derivative for `Funnel`. The only method needed
+is right multiplication by vector. Internal.
+"""
+struct Funnel∂X∂Y⊤{T,V<:AbstractVector{T},A} <: AbstractMatrix{T}
+    invw::T
+    y::V
+    axis::A
 end
 
-function hypercube_transform(ℓ::Elongate, z)
-    (; ℓ, k) = ℓ
-    x = hypercube_transform(ℓ, z)
-    (1 + sum(abs2, x))^k .* x
+# the AbstractArray API is implemented just for debugging/display purposes, we only need `*`
+Base.size(B::Funnel∂X∂Y⊤) = (n = length(B.axis); (n, n))
+Base.axes(B::Funnel∂X∂Y⊤) = (B.axis, B.axis)
+function Base.getindex(B::Funnel∂X∂Y⊤{T}, i, j) where T
+    (; invw, y, axis) = B
+    i1 = firstindex(axis)
+    @argcheck i ∈ axis && j ∈ axis BoundsError(B, (i, j))
+    if i == i1
+        if j == i1
+            one(T)
+        else
+            -invw * y[i]
+        end
+    elseif i == j
+        invw
+    else
+        zero(T)
+    end
+end
+
+function (Base.:*)(B::Funnel∂X∂Y⊤, v::AbstractVector)
+    (; invw, y, axis) = B
+    @argcheck axis == axes(v, 1)
+    z0 = -dot(@view(y[(begin+1):end]), @view(v[(begin+1):end])) * invw
+    map((a, b, c) -> a * b + c, v, AfterFirst(invw, axis), AfterFirst(z0, zero(z0), axis))
+end
+
+function destination_to_source(mode::ValidModes, transformation::Funnel, y)
+    n = length(y)
+    axis = axes(y, 1)
+    y1 = y[begin]
+    invw = exp(-y1)
+    x = map(*, y, AfterFirst(invw, axis))
+    c = (n - 1) * y1
+    if mode ≡ DensityMode()
+        return (; x, c)
+    end
+    ∂x∂y⊤ = Funnel∂X∂Y⊤(invw, y, axis)
+    ∂c∂y = AfterFirst(n - 1, 0, axis)
+    (; x, c, ∂x∂y⊤, ∂c∂y)
 end
