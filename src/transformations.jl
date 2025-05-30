@@ -32,7 +32,7 @@ transformations.
 struct DensityMode end
 
 """
-[`destination_to_source`](@ref) returns `(; x, c, ∂x∂y)`. Internal, for implementing
+[`destination_to_source`](@ref) returns `(; x, c, ∂x∂y, ∂c∂y)`. Internal, for implementing
 transformations.
 """
 struct DensityGradientMode end
