@@ -6,7 +6,7 @@ export
     # primitives
     StandardMultivariateNormal,
     # transformations
-    linear, shift, elongate,
+    linear, shift, elongate, funnel,
     # mixtures
     mix, directional_weight,
     # diagnostics
@@ -15,7 +15,7 @@ export
 using ArgCheck: @argcheck
 using DocStringExtensions: FIELDS, FUNCTIONNAME, SIGNATURES, TYPEDEF
 using LinearAlgebra: AbstractTriangular, checksquare, diag, Diagonal, I, dot, logabsdet, lu,
-    norm, UniformScaling
+    norm, Symmetric
 using LogDensityProblems: LogDensityOrder
 import LogDensityProblems: capabilities, dimension, logdensity, logdensity_and_gradient
 using MCMCDiagnosticTools: ess_rhat

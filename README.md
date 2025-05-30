@@ -12,3 +12,7 @@ Implementation of log densities as callable object that support
 2. generating “samples” deterministically using low-discrepancy sequences.
 
 This package was developed mainly for testing [DynamicHMC.jl](https://github.com/tpapp/DynamicHMC.jl/), but other projects may also find it useful.
+
+# Acknowledgements
+
+The development of this package was partially supported by the Austrian National Bank Jubileumsfonds Projekt 18847.

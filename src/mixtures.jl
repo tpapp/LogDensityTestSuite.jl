@@ -42,7 +42,8 @@ A *mixture* of two densities: `ℓ1(x)` with probability `α(x)`, and `ℓ2(x)` 
 `1-α(x)`. `α` needs to implement [`weight_and_gradient`](@ref).
 """
 function mix(α, ℓ1, ℓ2)
-    @argcheck dimension(ℓ1) == dimension(ℓ2)
+    @argcheck(dimension(ℓ1) == dimension(ℓ2),
+              DimensionMismatch("can only mix distributions with the same dimension"))
     Mix(α, ℓ1, ℓ2)
 end
 
