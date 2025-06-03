@@ -16,6 +16,27 @@ struct TransformedLogDensity{L,T} <: SamplingLogDensity
     transformation::T
 end
 
+function Base.show(io::IO, t::TransformedLogDensity)
+    _t = t
+    chain = []
+    while _t isa TransformedLogDensity
+        push!(chain, _t.transformation)
+        _t = _t.source
+    end
+    if length(chain) == 1
+        show(io, chain[1])
+    else
+        print(io, "(")
+        for (i, c) in enumerate(chain)
+            if i > 1
+                print(io, " ∘ ")
+            end
+            show(io, c)
+        end
+        print(io, ")(", _t, ")")
+    end
+end
+
 dimension(ℓ::TransformedLogDensity) = dimension(ℓ.source)
 
 """
@@ -90,6 +111,8 @@ struct Linear{M,S,T} <: LogDensityTransformation
     logabsdetA::T
 end
 
+Base.show(io::IO, transform::Linear) = print(io, "linear(", A, ")")
+
 """
 $(SIGNATURES)
 
@@ -152,6 +175,8 @@ struct Shift{T <: AbstractVector} <: LogDensityTransformation
     b::T
 end
 
+Base.show(io::IO, transform::Shift) = print(io, "shift(", transform.b, ")")
+
 """
 $(SIGNATURES)
 
@@ -179,6 +204,8 @@ end
 struct Elongate{T <: Real} <: LogDensityTransformation
     k::T
 end
+
+Base.show(io::IO, transform::Elongate) = print(io, "elongate(", transform.k, ")")
 
 """
 $(SIGNATURES)
@@ -243,6 +270,8 @@ end
 ####
 
 struct Funnel <: LogDensityTransformation end
+
+Base.show(io::IO, transform::Funnel) = print(io, "funnel()")
 
 """
 $(SIGNATURES)

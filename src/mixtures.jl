@@ -2,6 +2,8 @@
 ##### mixtures of distributions
 #####
 
+public weight, weight_and_gradient
+
 """
 $(TYPEDEF)
 
@@ -20,10 +22,17 @@ struct Mix{T,L1,L2} <: SamplingLogDensity
     ℓ2::L2
 end
 
+function Base.show(io::IO, mix::Mix)
+    (; α, ℓ1, ℓ2) = mix
+    print(io, "mix(", α, ", ", ℓ1, ", ", ℓ2, ")")
+end
+
 """
 $(SIGNATURES)
 
 Return `α(x)` and `∇α(x)`, where `α` is the mixture weight on the first distribution.
+
+Public, but not exported.
 """
 weight_and_gradient(α::Real, x) = α, zero(x)
 
@@ -32,6 +41,8 @@ $(SIGNATURES)
 
 Return `α(x)`, where `α` is the mixture weight on the first distribution. When not defined,
 falls back to [`weight_and_gradient`](@ref).
+
+Public, but not exported.
 """
 weight(α, x) = first(weight_and_gradient(α, x))
 

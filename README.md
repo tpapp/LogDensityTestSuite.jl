@@ -5,11 +5,13 @@
 [![codecov.io](http://codecov.io/github/tpapp/LogDensityTestSuite.jl/coverage.svg?branch=master)](http://codecov.io/github/tpapp/LogDensityTestSuite.jl?branch=master)
 [![DOI](https://zenodo.org/badge/199613252.svg)](https://zenodo.org/badge/latestdoi/199613252)
 
-Implementation of log densities as callable object that support
+Construct distributions that support
 
-1. the [LogDensityProblems.jl](https://github.com/tpapp/LogDensityProblems.jl) interface with gradients,
+1. the [LogDensityProblems.jl](https://github.com/tpapp/LogDensityProblems.jl) interface (with gradients),
 
 2. generating “samples” deterministically using low-discrepancy sequences.
+
+Gradient calculations use optimized closed formss instead automatic differentiation.
 
 This package was developed mainly for testing [DynamicHMC.jl](https://github.com/tpapp/DynamicHMC.jl/), but other projects may also find it useful.
 
