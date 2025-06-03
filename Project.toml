@@ -1,6 +1,6 @@
 name = "LogDensityTestSuite"
 uuid = "feb245ec-c857-584e-a66a-22324acf10c6"
-version = "0.6.6"
+version = "0.7.0"
 authors = ["Tamas K. Papp <tkpapp@gmail.com>"]
 
 [deps]

@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.7.0
+
+### Added
+
+- `funnel`
+- documentation
 
 ### Changed
 
@@ -8,11 +13,9 @@
 - `linear` no longer takes a dimensionless matrix-like quantity like `UniformScaling`
 - a `DimensionError` is thrown instead of an `ArgumentError` when a transformation is not applicable to a distribution
 
-### Added
+### Removed
 
-- `funnel`
-
-### Added
+- all diagnostics
 
 ## 0.6.6
 
