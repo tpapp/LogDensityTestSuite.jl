@@ -1,3 +1,6 @@
+"""
+$(README)
+"""
 module LogDensityTestSuite
 
 export
@@ -13,7 +16,8 @@ export
     quantile_boundaries, bin_counts, two_sided_pvalues, print_ascii_plot
 
 using ArgCheck: @argcheck
-using DocStringExtensions: FIELDS, FUNCTIONNAME, SIGNATURES, TYPEDEF
+using Compat: @compat
+using DocStringExtensions: FIELDS, FUNCTIONNAME, SIGNATURES, TYPEDEF, README
 using LinearAlgebra: AbstractTriangular, checksquare, diag, Diagonal, I, dot, logabsdet, lu,
     norm, Symmetric
 using LogDensityProblems: LogDensityOrder
