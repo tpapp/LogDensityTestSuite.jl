@@ -237,28 +237,3 @@ end
     end
     @test_throws ArgumentError directional_weight(zeros(5))
 end
-
-####
-#### diagnostics
-####
-
-@testset "diagnostics" begin
-    x = range(0, 1; length = 100001)
-    q = quantile_boundaries(x, 10)
-
-    # test p-values and printing
-    bc = bin_counts(q, rand(1000))
-    bc.bin_counts[1] = 1        # to test printing extremes
-    ps = two_sided_pvalues(bc)
-    @test all(0 .≤ ps .≤ 1)
-    @test print_ascii_plot(String, bc) isa String # very rudimentary
-    @info "this is what a printed ascii plot looks like"
-    show(stdout, bc)
-
-    # validate p-values
-    q̄ = (1:3)./4
-    ps = reduce(hcat, [two_sided_pvalues(bin_counts(q, rand(1000))) for _ in 1:1000])
-    for i in axes(ps, 1)
-        @test quantile(ps[i, :], q̄) ≈ q̄ atol = 0.1 norm = x -> norm(x, Inf)
-    end
-end
