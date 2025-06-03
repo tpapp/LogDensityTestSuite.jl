@@ -237,3 +237,13 @@ end
     end
     @test_throws ArgumentError directional_weight(zeros(5))
 end
+
+@testset "printing" begin
+    b = [0.5]
+    d0 = StandardMultivariateNormal(1)
+    A = [0.3;;]
+    d = mix(directional_weight(b), (funnel() ∘ elongate(0.3) ∘ shift(b))(d0), linear()(d0))
+    @test repr(d) == ("mix(directional_weight(" * repr(b) *
+        "), (funnel() ∘ elongate(0.3) ∘ shift(" * repr(b) *
+        "))(StandardMultivariateNormal(1)), linear(" * repr(A) * ")(StandardMultivariateNormal(1)))")
+end

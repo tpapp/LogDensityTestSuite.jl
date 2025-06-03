@@ -33,8 +33,9 @@ function Base.show(io::IO, t::TransformedLogDensity)
             end
             show(io, c)
         end
-        print(io, ")(", _t, ")")
+        print(io, ")")
     end
+    print(io, "(", _t, ")")
 end
 
 dimension(ℓ::TransformedLogDensity) = dimension(ℓ.source)
@@ -111,7 +112,7 @@ struct Linear{M,S,T} <: LogDensityTransformation
     logabsdetA::T
 end
 
-Base.show(io::IO, transform::Linear) = print(io, "linear(", A, ")")
+Base.show(io::IO, transform::Linear) = print(io, "linear(", transform.A, ")")
 
 """
 $(SIGNATURES)

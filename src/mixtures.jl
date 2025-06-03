@@ -87,6 +87,8 @@ struct DirectionalWeight{V}
     y::V
 end
 
+Base.show(io::IO, α::DirectionalWeight) = print(io, "directional_weight(", α.y, ")")
+
 """
 $(SIGNATURES)
 
