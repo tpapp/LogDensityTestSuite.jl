@@ -2,7 +2,7 @@
 ##### mixtures of distributions
 #####
 
-public weight, weight_and_gradient
+@compat public weight, weight_and_gradient
 
 """
 $(TYPEDEF)
