@@ -137,12 +137,3 @@ New kinds of mixtures that depend on coordinates can be created by implementing 
 LogDensityTestSuite.weight
 LogDensityTestSuite.weight_and_gradient
 ```
-
-## Diagnostics
-
-```@docs
-two_sided_pvalues
-print_ascii_plot
-bin_counts
-quantile_boundaries
-```
