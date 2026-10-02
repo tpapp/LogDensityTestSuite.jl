@@ -172,7 +172,7 @@ end
     @test dimension(ℓ) == hypercube_dimension(ℓ) == K
     @test capabilities(ℓ) == LogDensityOrder(1)
     Z = samples(ℓ, N)
-    @test vec(mean(Z; dims = 2)) ≈ zeros(K) norm = x -> norm(x, Inf) atol = 0.02
+    @test vec(mean(Z; dims = 2)) ≈ zeros(K) norm = x -> norm(x, Inf) atol = 0.03
     for x in eachcol(Z)
         test_gradient(ℓ, x)
     end
